@@ -27,6 +27,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
         private double currentA;
         private double currentB;
         private double currentRoot;
+        private string currentExpressionText = string.Empty;
 
         #endregion
 
@@ -234,6 +235,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
             uiEpsilon.Clear();
             uiAnswer.Text = "Данные очищены.";
             currentFunction = null;
+            currentExpressionText = string.Empty;
             uiGraph.Invalidate();
             uiFormula.Focus();
         }
@@ -340,6 +342,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 // Сохраняем найденное значение и обновляем результат на экране.
                 double valueAtRoot = function.Calculate(root);
                 currentFunction = function;
+                currentExpressionText = expression;
                 currentA = a;
                 currentB = b;
                 currentRoot = root;
@@ -382,39 +385,76 @@ namespace ProgrammingLabs.Labs.Dichotomy
             Rectangle area = new Rectangle(65, 24, bounds.Width - 94, bounds.Height - 82);
             if (area.Width < 50 || area.Height < 50) return;
 
-            // Берём точки по отрезку [a, b], чтобы нарисовать кривую.
-            const int count = 700;
+            const int count = 1600;
             double[] values = new double[count + 1];
             bool[] valid = new bool[count + 1];
-            double minY = 0, maxY = 0;
+            bool tangentLike = IsTangentLikeExpression(currentExpressionText);
+
+            double minY = double.PositiveInfinity;
+            double maxY = double.NegativeInfinity;
+            double visibleLimit = tangentLike ? 4.0 : 1.0;
+            int visibleCount = 0;
+
             for (int i = 0; i <= count; i++)
             {
                 double x = currentA + (currentB - currentA) * (i / (double)count);
                 try
                 {
                     double y = currentFunction.Calculate(x);
+                    if (double.IsNaN(y) || double.IsInfinity(y))
+                        continue;
+
                     values[i] = y;
                     valid[i] = true;
-                    if (y < minY) minY = y;
-                    if (y > maxY) maxY = y;
+
+                    if (!tangentLike)
+                    {
+                        double absY = Math.Abs(y);
+                        if (absY < 1000)
+                        {
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                            visibleCount++;
+                        }
+                    }
                 }
                 catch (FormatException) { }
                 catch (ArithmeticException) { }
             }
 
-            // Подбираем масштаб Y с небольшими отступами сверху и снизу.
+            if (tangentLike)
+            {
+                minY = -visibleLimit;
+                maxY = visibleLimit;
+            }
+            else
+            {
+                if (visibleCount == 0 || double.IsInfinity(minY) || double.IsInfinity(maxY))
+                {
+                    minY = -1;
+                    maxY = 1;
+                }
+                if (Math.Abs(maxY - minY) < 1e-12)
+                {
+                    minY -= 1;
+                    maxY += 1;
+                }
+                else
+                {
+                    double padding = (maxY - minY) * 0.1;
+                    minY -= padding;
+                    maxY += padding;
+                }
+                visibleLimit = Math.Max(Math.Abs(minY), Math.Abs(maxY));
+            }
+
             double range = maxY - minY;
-            if (range <= 0 || double.IsInfinity(range)) range = 1;
-            minY -= range * 0.1;
-            maxY += range * 0.1;
-            range = maxY - minY;
 
             using (Pen grid = new Pen(Color.FromArgb(228, 238, 233)))
             using (Pen axis = new Pen(Color.FromArgb(158, 175, 170), 1.3F))
             using (Pen functionPen = new Pen(Color.FromArgb(41, 148, 143), 2.2F))
             using (Pen rootPen = new Pen(Color.FromArgb(240, 128, 128), 1.6F))
             {
-                // Линии сетки и оси координат.
                 for (int i = 0; i <= 5; i++)
                 {
                     float px = area.Left + area.Width * i / 5F;
@@ -422,10 +462,10 @@ namespace ProgrammingLabs.Labs.Dichotomy
                     g.DrawLine(grid, px, area.Top, px, area.Bottom);
                     g.DrawLine(grid, area.Left, py, area.Right, py);
                 }
+
                 if (currentA <= 0 && currentB >= 0)
                 {
-                    float axisX = area.Left + (float)((0 - currentA) /
-                        (currentB - currentA) * area.Width);
+                    float axisX = area.Left + (float)((0 - currentA) / (currentB - currentA) * area.Width);
                     g.DrawLine(axis, axisX, area.Top, axisX, area.Bottom);
                 }
                 if (minY <= 0 && maxY >= 0)
@@ -438,31 +478,44 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 try
                 {
                     g.SetClip(area);
-                    // Соединяем соседние корректные точки функции.
+
+                    if (tangentLike)
+                        DrawTangentAsymptotes(g, grid, area, currentA, currentB);
+
                     for (int i = 1; i <= count; i++)
                     {
-                        if (!valid[i - 1] || !valid[i]) continue;
-                        double y1 = area.Bottom - (values[i - 1] - minY) / range * area.Height;
-                        double y2 = area.Bottom - (values[i] - minY) / range * area.Height;
+                        if (!valid[i - 1] || !valid[i])
+                            continue;
+
+                        double v1 = values[i - 1];
+                        double v2 = values[i];
+                        if (MustBreakSegment(v1, v2, visibleLimit, tangentLike))
+                            continue;
+
+                        double clipped1 = Math.Max(minY, Math.Min(maxY, v1));
+                        double clipped2 = Math.Max(minY, Math.Min(maxY, v2));
+                        double y1 = area.Bottom - (clipped1 - minY) / range * area.Height;
+                        double y2 = area.Bottom - (clipped2 - minY) / range * area.Height;
+
                         if (double.IsNaN(y1) || double.IsNaN(y2) ||
-                            Math.Abs(y1) > 100000 || Math.Abs(y2) > 100000) continue;
+                            double.IsInfinity(y1) || double.IsInfinity(y2))
+                            continue;
+
                         float x1 = area.Left + area.Width * (i - 1) / (float)count;
                         float x2 = area.Left + area.Width * i / (float)count;
                         g.DrawLine(functionPen, x1, (float)y1, x2, (float)y2);
                     }
 
-                    // Вертикальный пунктир и точка найденного корня.
-                    float rootX = area.Left + (float)((currentRoot - currentA) /
-                        (currentB - currentA) * area.Width);
+                    float rootX = area.Left + (float)((currentRoot - currentA) / (currentB - currentA) * area.Width);
                     rootPen.DashStyle = DashStyle.Dash;
                     g.DrawLine(rootPen, rootX, area.Top, rootX, area.Bottom);
+
                     double rootY = currentFunction.Calculate(currentRoot);
-                    double rootPixelY = area.Bottom - (rootY - minY) / range * area.Height;
-                    if (!double.IsNaN(rootPixelY) && !double.IsInfinity(rootPixelY) &&
-                        Math.Abs(rootPixelY) < 100000)
+                    double clampedRootY = Math.Max(minY, Math.Min(maxY, rootY));
+                    double rootPixelY = area.Bottom - (clampedRootY - minY) / range * area.Height;
+                    if (!double.IsNaN(rootPixelY) && !double.IsInfinity(rootPixelY))
                     {
-                        g.FillEllipse(Brushes.LightCoral, rootX - 5,
-                            (float)rootPixelY - 5, 10, 10);
+                        g.FillEllipse(Brushes.LightCoral, rootX - 5, (float)rootPixelY - 5, 10, 10);
                     }
                 }
                 finally
@@ -470,21 +523,59 @@ namespace ProgrammingLabs.Labs.Dichotomy
                     g.Restore(saved);
                 }
             }
-            // Подписи границ графика и найденного x.
+
             using (Font captionFont = new Font("Segoe UI", 9F))
             {
-                g.DrawString(currentA.ToString("G5", CultureInfo.CurrentCulture),
-                    captionFont, Brushes.DimGray, area.Left, area.Bottom + 8);
+                g.DrawString(currentA.ToString("G5", CultureInfo.CurrentCulture), captionFont, Brushes.DimGray, area.Left, area.Bottom + 8);
                 string bText = currentB.ToString("G5", CultureInfo.CurrentCulture);
                 SizeF bTextSize = g.MeasureString(bText, captionFont);
-                g.DrawString(bText, captionFont, Brushes.DimGray,
-                    area.Right - bTextSize.Width, area.Bottom + 8);
-                g.DrawString(maxY.ToString("G4", CultureInfo.CurrentCulture),
-                    captionFont, Brushes.DimGray, 2, area.Top);
-                g.DrawString(minY.ToString("G4", CultureInfo.CurrentCulture),
-                    captionFont, Brushes.DimGray, 2, area.Bottom - 17);
-                g.DrawString("x ≈ " + currentRoot.ToString("G7", CultureInfo.CurrentCulture),
-                    captionFont, Brushes.LightCoral, area.Left + 8, area.Top + 6);
+                g.DrawString(bText, captionFont, Brushes.DimGray, area.Right - bTextSize.Width, area.Bottom + 8);
+                g.DrawString(maxY.ToString("G4", CultureInfo.CurrentCulture), captionFont, Brushes.DimGray, 2, area.Top);
+                g.DrawString(minY.ToString("G4", CultureInfo.CurrentCulture), captionFont, Brushes.DimGray, 2, area.Bottom - 17);
+                g.DrawString("x ≈ " + currentRoot.ToString("G7", CultureInfo.CurrentCulture), captionFont, Brushes.LightCoral, area.Left + 8, area.Top + 6);
+            }
+        }
+
+        private static bool IsTangentLikeExpression(string expression)
+        {
+            string text = expression.Replace(" ", string.Empty).ToLowerInvariant();
+            return text.Contains("tg(") || text.Contains("tan(");
+        }
+
+        private static bool MustBreakSegment(double y1, double y2, double visibleLimit, bool tangentLike)
+        {
+            if (double.IsNaN(y1) || double.IsNaN(y2) || double.IsInfinity(y1) || double.IsInfinity(y2))
+                return true;
+
+            if (tangentLike)
+            {
+                if (Math.Abs(y1) > visibleLimit || Math.Abs(y2) > visibleLimit)
+                    return true;
+                if (Math.Abs(y2 - y1) > visibleLimit * 1.8)
+                    return true;
+            }
+            else
+            {
+                if (Math.Abs(y1) > 1000 || Math.Abs(y2) > 1000)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void DrawTangentAsymptotes(Graphics g, Pen gridPen, Rectangle area, double a, double b)
+        {
+            using Pen asymptotePen = new Pen(Color.FromArgb(190, 190, 190), 1f) { DashStyle = DashStyle.Dash };
+            double halfPi = Math.PI / 2.0;
+            int startK = (int)Math.Ceiling((a - halfPi) / Math.PI);
+            int endK = (int)Math.Floor((b - halfPi) / Math.PI);
+
+            for (int k = startK; k <= endK; k++)
+            {
+                double x = halfPi + k * Math.PI;
+                if (x <= a || x >= b) continue;
+                float px = area.Left + (float)((x - a) / (b - a) * area.Width);
+                g.DrawLine(asymptotePen, px, area.Top, px, area.Bottom);
             }
         }
 
