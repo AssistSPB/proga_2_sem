@@ -2,10 +2,10 @@
 {
     partial class MainMenuForm
     {
-        /// <summary>Обязательная переменная конструктора форм Windows.</summary>
-        private System.ComponentModel.IContainer components = null;
+         
+        private System.ComponentModel.IContainer? components = null;
 
-        /// <summary>Освободить используемые ресурсы.</summary>
+         
         protected override void Dispose(bool disposing)
         {
             if (disposing && components != null)
@@ -13,7 +13,6 @@
             base.Dispose(disposing);
         }
 
-        #region Код, автоматически созданный конструктором форм Windows
 
         private void InitializeComponent()
         {
@@ -26,6 +25,5 @@
             ResumeLayout(false);
         }
 
-        #endregion
     }
 }

@@ -1,232 +1,381 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Windows.Forms;
 
-// Лабораторная №1: поиск корня уравнения f(x) = 0 методом дихотомии.
-// Оформление и вся логика находятся здесь; базовый дизайнер — в DichotomyForm.Designer.cs.
-// Пространство имён формы: ProgrammingLabs.Labs.Dichotomy.
+ 
+ 
+ 
 namespace ProgrammingLabs.Labs.Dichotomy
 {
-    // Класс разделён на тематические блоки (#region) для удобства чтения.
+     
     public partial class DichotomyForm : Form
     {
-        #region 1. Поля формы и состояние вычислений
 
-        // Элементы окна: четыре поля ввода, ответ и панель графика.
+         
         private readonly TextBox uiFormula = new TextBox();
         private readonly TextBox uiA = new TextBox();
         private readonly TextBox uiB = new TextBox();
         private readonly TextBox uiEpsilon = new TextBox();
-        private readonly Label uiAnswer = new Label();
+        private readonly TextBox uiAnswer = new TextBox();
+        private readonly RadioButton uiOneRoot = new RadioButton();
+        private readonly RadioButton uiAllRoots = new RadioButton();
         private readonly GraphSurface uiGraph = new GraphSurface();
 
-        // Последняя успешно вычисленная функция и данные для её графика.
+         
         private ExpressionParser? currentFunction;
         private double currentA;
         private double currentB;
-        private double currentRoot;
+        private readonly List<double> currentRoots = new List<double>();
         private string currentExpressionText = string.Empty;
 
-        #endregion
 
-        #region 2. Создание и оформление интерфейса
 
-        // Конструктор: сначала стандартный WinForms Designer, затем наша компоновка.
+        private static readonly Color PageColor = Color.FromArgb(245, 248, 247);
+        private static readonly Color DarkColor = Color.FromArgb(27, 65, 72);
+        private static readonly Color AccentColor = Color.FromArgb(32, 138, 129);
+        private static readonly Color MutedColor = Color.FromArgb(113, 137, 138);
+        private static readonly Color BorderColor = Color.FromArgb(220, 233, 229);
+
+         
         public DichotomyForm()
         {
             InitializeComponent();
             BuildInterface();
         }
 
-        // Компоновка: заголовок/меню -> поля ввода -> график и результат.
         private void BuildInterface()
         {
             Text = "Метод дихотомии — поиск корня f(x) = 0";
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(860, 550);
-            Size = new Size(1140, 710);
-            BackColor = Color.FromArgb(238, 244, 242);
+            MinimumSize = new Size(920, 645);
+            Size = new Size(1220, 770);
+            BackColor = PageColor;
             Font = new Font("Segoe UI", 10F);
-            Color ink = Color.FromArgb(32, 86, 91);
-            Color muted = Color.FromArgb(108, 132, 135);
 
-            // Верхняя панель: заголовок слева, действия в MenuStrip справа.
-            Panel header = new Panel { Dock = DockStyle.Fill, BackColor = BackColor };
-            Panel headings = new Panel { Dock = DockStyle.Fill, Padding = new Padding(3, 3, 0, 0) };
-            headings.Controls.Add(new Label
+             
+            var header = new SoftCard
             {
-                Text = "Поиск корня уравнения f(x) = 0",
-                Dock = DockStyle.Top, Height = 39,
-                Font = new Font("Segoe UI", 17F, FontStyle.Bold), ForeColor = ink
-            });
-            headings.Controls.Add(new Label
-            {
-                Text = "Метод половинного деления · Лабораторная работа № 1",
-                Dock = DockStyle.Bottom, Height = 26, ForeColor = muted
-            });
-
-            // Действия вынесены в MenuStrip согласно требованиям лабораторной.
-            MenuStrip menu = new MenuStrip
-            {
-                Dock = DockStyle.Right, Width = 370, AutoSize = false,
-                LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow,
-                BackColor = Color.FromArgb(216, 235, 230),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Padding = new Padding(5, 13, 5, 13)
+                Dock = DockStyle.Fill,
+                BackColor = DarkColor,
+                Margin = new Padding(0, 0, 0, 14),
+                Padding = new Padding(25, 12, 18, 12)
             };
-            ToolStripMenuItem calculate = new ToolStripMenuItem("▶ Рассчитать")
+            var headerLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 405));
+            headerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var titles = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
+            titles.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
+            titles.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
+            titles.Controls.Add(MakeText("ПОИСК КОРНЯ УРАВНЕНИЯ  f(x) = 0", 16.5F, Color.White, true), 0, 0);
+            titles.Controls.Add(MakeText("Лабораторная № 1   /   Метод половинного деления", 9.5F,
+                Color.FromArgb(190, 220, 215)), 0, 1);
+
+            var menu = new MenuStrip
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = false,
+                BackColor = DarkColor,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Padding = new Padding(0, 13, 0, 13),
+                Renderer = new MenuHighlightRenderer()
+            };
+            var calculate = new ToolStripMenuItem("▶ Рассчитать")
             {
                 ShortcutKeys = Keys.Control | Keys.Enter,
                 ToolTipText = "Рассчитать корень (Ctrl+Enter)"
             };
             calculate.Click += (s, e) => CalculateRoot();
-            ToolStripMenuItem clear = new ToolStripMenuItem("↻ Очистить");
+            var clear = new ToolStripMenuItem("↻ Очистить");
             clear.Click += (s, e) => ClearInputs();
-            // При закрытии модальной формы главное меню появляется снова.
-            ToolStripMenuItem backToMenu = new ToolStripMenuItem("← В меню");
+            var backToMenu = new ToolStripMenuItem("← В меню");
             backToMenu.Click += (s, e) => Close();
             menu.Items.AddRange(new ToolStripItem[] { calculate, clear, backToMenu });
             foreach (ToolStripItem item in menu.Items)
             {
-                item.ForeColor = ink;
-                item.Padding = new Padding(5, 6, 5, 6);
+                item.ForeColor = Color.White;
+                item.Padding = new Padding(6, 7, 6, 7);
             }
             MainMenuStrip = menu;
-            header.Controls.Add(headings);
-            header.Controls.Add(menu);
+            headerLayout.Controls.Add(titles, 0, 0);
+            headerLayout.Controls.Add(menu, 1, 0);
+            header.Controls.Add(headerLayout);
 
-            // Поля ввода расположены в одну строку над графиком.
-            Panel inputsCard = new Panel
+             
+            var inputsCard = new SoftCard
             {
-                Dock = DockStyle.Fill, BackColor = Color.White,
-                Margin = new Padding(0, 3, 0, 13), Padding = new Padding(17, 13, 17, 7)
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                BorderColor = BorderColor,
+                Margin = new Padding(0, 0, 0, 14),
+                Padding = new Padding(21, 14, 17, 8)
             };
-            TableLayoutPanel inputGrid = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2
-            };
-            inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 43F));
-            inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 19F));
-            inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 19F));
-            inputGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 19F));
-            inputGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 66F));
-            inputGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            var inputs = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4 };
+            foreach (float width in new[] { 43F, 19F, 19F, 19F })
+                inputs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, width));
+            inputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 29));
+            inputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 49));
+            inputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            inputs.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            TextBox[] boxes = { uiFormula, uiA, uiB, uiEpsilon };
-            string[] captions = { "Функция f(x)", "Граница a", "Граница b", "Точность ε" };
-            for (int i = 0; i < boxes.Length; i++)
+            TextBox[] fields = { uiFormula, uiA, uiB, uiEpsilon };
+            string[] captions = { "ФУНКЦИЯ  f(x)", "ГРАНИЦА  a", "ГРАНИЦА  b", "ТОЧНОСТЬ  ε" };
+            for (int i = 0; i < fields.Length; i++)
             {
-                Panel cell = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 13, 0) };
-                Label caption = new Label
+                var caption = MakeText(captions[i], 9F, DarkColor, true);
+                caption.Margin = new Padding(0, 0, 12, 0);
+                inputs.Controls.Add(caption, i, 0);
+                SetupInput(fields[i], i == 3 ? "0,0001" : "");
+                var shell = new Panel
                 {
-                    Text = captions[i], Dock = DockStyle.Top, Height = 27,
-                    Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = ink
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.FromArgb(244, 249, 247),
+                    Padding = new Padding(11, 10, 11, 9),
+                    Margin = new Padding(0, 0, 14, 2)
                 };
-                SetupInput(boxes[i], i == 3 ? "0,0001" : "");
-                cell.Controls.Add(boxes[i]);
-                cell.Controls.Add(caption);
-                inputGrid.Controls.Add(cell, i, 0);
+                shell.Paint += (s, e) =>
+                {
+                    using var border = new Pen(BorderColor);
+                    e.Graphics.DrawRectangle(border, 0, 0, shell.Width - 1, shell.Height - 1);
+                };
+                shell.Controls.Add(fields[i]);
+                inputs.Controls.Add(shell, i, 1);
             }
-            // Подсказка по синтаксису вводимой формулы.
-            Label hint = new Label
-            {
-                Text = "Примеры: x^3-x-2, sin(x)  ·  Функции: sin, cos, tan, sqrt, abs, ln, log, exp  ·  Степень: ^",
-                Dock = DockStyle.Fill, ForeColor = muted, Font = new Font("Segoe UI", 9F)
-            };
-            inputGrid.Controls.Add(hint, 0, 1);
-            inputGrid.SetColumnSpan(hint, 4);
-            inputsCard.Controls.Add(inputGrid);
+            var syntax = MakeText("Примеры: x^3-x-2, tg(x), sin(x)   •   Функции: sin, cos, tan, sqrt, abs, ln, log, exp   •   Степень: ^",
+                9F, MutedColor);
+            syntax.Margin = new Padding(0, 5, 0, 0);
+            inputs.Controls.Add(syntax, 0, 2);
+            inputs.SetColumnSpan(syntax, 4);
 
-            // Основная область: широкий график слева, результат справа.
-            TableLayoutPanel content = new TableLayoutPanel
+             
+            var modeRow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1
+                Dock = DockStyle.Fill, WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = Padding.Empty, Padding = Padding.Empty
             };
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 73F));
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27F));
-            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            var modeTitle = MakeText("РЕЖИМ ПОИСКА", 9F, DarkColor, true);
+            modeTitle.Dock = DockStyle.None;
+            modeTitle.Size = new Size(145, 33);
+            modeRow.Controls.Add(modeTitle);
+            SetupModeButton(uiOneRoot, "Один корень");
+            SetupModeButton(uiAllRoots, "Все корни");
+            modeRow.Controls.Add(uiOneRoot);
+            modeRow.Controls.Add(uiAllRoots);
+            inputs.Controls.Add(modeRow, 0, 3);
+            inputs.SetColumnSpan(modeRow, 4);
+            uiOneRoot.Checked = true;
+            uiOneRoot.CheckedChanged += (s, e) => UpdateMode();
+            uiAllRoots.CheckedChanged += (s, e) => UpdateMode();
+            UpdateModeColors();
+            inputsCard.Controls.Add(inputs);
 
-            Panel graphCard = new Panel
+             
+            var workspace = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+            workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 73));
+            workspace.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27));
+            workspace.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var graphCard = new SoftCard
             {
-                Dock = DockStyle.Fill, BackColor = Color.White,
-                Padding = new Padding(15), Margin = new Padding(0, 0, 12, 0)
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                BorderColor = BorderColor,
+                Padding = new Padding(19, 14, 19, 15),
+                Margin = new Padding(0, 0, 14, 0)
             };
-            Label graphTitle = new Label
-            {
-                Text = "График функции", Dock = DockStyle.Top, Height = 39,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = ink
-            };
+            var graphTitle = MakeText("График функции", 13F, DarkColor, true);
+            graphTitle.Dock = DockStyle.Top;
+            graphTitle.Height = 43;
+            var graphFooter = MakeText("Бирюзовая — f(x)     •     Коралловые точки — найденные корни", 9F, MutedColor);
+            graphFooter.Dock = DockStyle.Bottom;
+            graphFooter.Height = 32;
             uiGraph.Dock = DockStyle.Fill;
             uiGraph.BackColor = Color.White;
             uiGraph.Paint += DrawGraph;
             graphCard.Controls.Add(uiGraph);
+            graphCard.Controls.Add(graphFooter);
             graphCard.Controls.Add(graphTitle);
 
-            // Карточка с числовым ответом и легендой графика.
-            Panel resultCard = new Panel
+            var resultCard = new SoftCard
             {
-                Dock = DockStyle.Fill, BackColor = Color.FromArgb(216, 235, 230),
-                Padding = new Padding(18), Margin = new Padding(0)
+                Dock = DockStyle.Fill,
+                BackColor = DarkColor,
+                Padding = new Padding(24, 21, 22, 21),
+                Margin = new Padding(0)
             };
-            Label resultTitle = new Label
-            {
-                Text = "РЕЗУЛЬТАТ", Dock = DockStyle.Top, Height = 42,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = ink
-            };
+            var resultTitle = MakeText("РЕЗУЛЬТАТ РАСЧЁТА", 10F,
+                Color.FromArgb(153, 220, 206), true);
+            resultTitle.Dock = DockStyle.Top;
+            resultTitle.Height = 43;
             uiAnswer.Dock = DockStyle.Fill;
-            uiAnswer.AutoSize = false;
-            uiAnswer.Padding = new Padding(0, 12, 0, 0);
+            uiAnswer.Multiline = true;
+            uiAnswer.ReadOnly = true;
+            uiAnswer.ScrollBars = ScrollBars.Vertical;
+            uiAnswer.BorderStyle = BorderStyle.None;
+            uiAnswer.WordWrap = false;
+            uiAnswer.ForeColor = Color.White;
+            uiAnswer.BackColor = DarkColor;
             uiAnswer.Font = new Font("Segoe UI", 11F);
-            uiAnswer.ForeColor = Color.FromArgb(23, 108, 99);
-            uiAnswer.Text = "Введите данные и нажмите «Рассчитать».";
-            Label legend = new Label
-            {
-                Text = "Бирюзовая линия — функция.\nКоралловая точка — найденный корень.",
-                Dock = DockStyle.Bottom, Height = 65, Font = new Font("Segoe UI", 9F),
-                ForeColor = muted
-            };
+            uiAnswer.Padding = new Padding(0, 14, 0, 0);
+            uiAnswer.Text = "Введите функцию и границы интервала, затем нажмите «Рассчитать».";
+            var resultFooter = MakeText("Метод дихотомии\nТочность задаётся по оси x", 9.5F,
+                Color.FromArgb(185, 212, 211));
+            resultFooter.Dock = DockStyle.Bottom;
+            resultFooter.Height = 75;
             resultCard.Controls.Add(uiAnswer);
             resultCard.Controls.Add(resultTitle);
-            resultCard.Controls.Add(legend);
+            resultCard.Controls.Add(resultFooter);
 
-            content.Controls.Add(graphCard, 0, 0);
-            content.Controls.Add(resultCard, 1, 0);
-            // Итоговая сборка трёх горизонтальных уровней окна.
-            TableLayoutPanel layout = new TableLayoutPanel
+            workspace.Controls.Add(graphCard, 0, 0);
+            workspace.Controls.Add(resultCard, 1, 0);
+
+             
+            var root = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
-                Padding = new Padding(17), BackColor = BackColor
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(22, 21, 22, 22),
+                BackColor = PageColor
             };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 79F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 133F));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            layout.Controls.Add(header, 0, 0);
-            layout.Controls.Add(inputsCard, 0, 1);
-            layout.Controls.Add(content, 0, 2);
-            Controls.Add(layout);
-            AcceptButton = null; // Действия — только в MenuStrip.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 194));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.Controls.Add(header, 0, 0);
+            root.Controls.Add(inputsCard, 0, 1);
+            root.Controls.Add(workspace, 0, 2);
+            Controls.Add(root);
+            AcceptButton = null;  
         }
 
-        // Единое оформление текстовых полей.
+        private static Label MakeText(string content, float size, Color color, bool bold = false)
+        {
+            return new Label
+            {
+                Text = content,
+                Dock = DockStyle.Fill,
+                ForeColor = color,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", size, bold ? FontStyle.Bold : FontStyle.Regular)
+            };
+        }
+
         private static void SetupInput(TextBox box, string initialValue)
         {
-            box.Dock = DockStyle.Top;
+            box.Dock = DockStyle.Fill;
+            box.AutoSize = false;
             box.Font = new Font("Segoe UI", 11F);
-            box.BackColor = Color.FromArgb(247, 251, 250);
-            box.ForeColor = Color.FromArgb(36, 70, 74);
-            box.BorderStyle = BorderStyle.FixedSingle;
+            box.BackColor = Color.FromArgb(244, 249, 247);
+            box.ForeColor = DarkColor;
+            box.BorderStyle = BorderStyle.None;
             box.Text = initialValue;
-            box.Margin = new Padding(0);
+            box.Margin = Padding.Empty;
         }
 
-        #endregion
+         
+        private static void SetupModeButton(RadioButton button, string caption)
+        {
+            button.Text = caption;
+            button.Appearance = Appearance.Button;
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 1;
+            button.TextAlign = ContentAlignment.MiddleCenter;
+            button.Cursor = Cursors.Hand;
+            button.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            button.Size = new Size(140, 32);
+            button.Margin = new Padding(0, 0, 8, 0);
+            button.UseVisualStyleBackColor = false;
+        }
 
-        #region 3. Очистка и проверка ввода
+        private void UpdateModeColors()
+        {
+            foreach (RadioButton button in new[] { uiOneRoot, uiAllRoots })
+            {
+                button.BackColor = button.Checked ? AccentColor : Color.FromArgb(237, 246, 243);
+                button.ForeColor = button.Checked ? Color.White : DarkColor;
+                button.FlatAppearance.BorderColor = button.Checked ? AccentColor : BorderColor;
+            }
+        }
 
-        // Сброс данных, результата и графика.
+        private void UpdateMode()
+        {
+            UpdateModeColors();
+            currentFunction = null;
+            currentRoots.Clear();
+            uiAnswer.Text = "Выберите функцию, интервал и нажмите «Рассчитать».";
+            uiGraph.Invalidate();
+        }
+
+         
+        private sealed class MenuHighlightRenderer : ToolStripProfessionalRenderer
+        {
+            protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+            {
+                Color background = e.Item.Selected
+                    ? Color.FromArgb(43, 114, 114)
+                    : e.Item.Text?.Contains("Рассчитать") == true ? AccentColor : DarkColor;
+                using var brush = new SolidBrush(background);
+                e.Graphics.FillRectangle(brush, 2, 2, Math.Max(0, e.Item.Width - 4),
+                    Math.Max(0, e.Item.Height - 4));
+            }
+        }
+
+         
+        private sealed class SoftCard : Panel
+        {
+             
+            public Color BorderColor = Color.Transparent;
+
+            public SoftCard()
+            {
+                DoubleBuffered = true;
+                ResizeRedraw = true;
+            }
+
+            private static GraphicsPath Rounded(Rectangle r, int radius)
+            {
+                float d = Math.Max(1, Math.Min(radius * 2, Math.Min(r.Width, r.Height)));
+                var path = new GraphicsPath();
+                path.AddArc(r.Left, r.Top, d, d, 180, 90);
+                path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+                path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+                path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+                path.CloseFigure();
+                return path;
+            }
+
+            protected override void OnResize(EventArgs e)
+            {
+                base.OnResize(e);
+                if (Width < 2 || Height < 2) return;
+                using var path = Rounded(new Rectangle(0, 0, Width, Height), 14);
+                var previous = Region;
+                Region = new Region(path);
+                previous?.Dispose();
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                if (BorderColor == Color.Transparent || Width < 3 || Height < 3) return;
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var path = Rounded(new Rectangle(1, 1, Width - 2, Height - 2), 13);
+                using var border = new Pen(BorderColor);
+                e.Graphics.DrawPath(border, path);
+            }
+        }
+
+
+
+         
         private void ClearInputs()
         {
             uiFormula.Clear();
@@ -235,12 +384,13 @@ namespace ProgrammingLabs.Labs.Dichotomy
             uiEpsilon.Clear();
             uiAnswer.Text = "Данные очищены.";
             currentFunction = null;
+            currentRoots.Clear();
             currentExpressionText = string.Empty;
             uiGraph.Invalidate();
             uiFormula.Focus();
         }
 
-        // Преобразование введённого числа: поддерживаются запятая и точка.
+         
         private static double ReadNumber(string source, string parameter)
         {
             if (!double.TryParse(source.Trim().Replace(',', '.'), NumberStyles.Float,
@@ -253,11 +403,9 @@ namespace ProgrammingLabs.Labs.Dichotomy
             return result;
         }
 
-        #endregion
 
-        #region 4. Поиск корня методом дихотомии
 
-        // Ищем x, для которого f(x) = 0, на заданном интервале [a, b].
+         
         private void CalculateRoot()
         {
             try
@@ -266,7 +414,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 if (expression.Length == 0)
                     throw new ArgumentException("Введите формулу f(x).");
 
-                // Разрешаем и обычный вид, и f(x) = ...
+                 
                 if (expression.StartsWith("f(x)", StringComparison.OrdinalIgnoreCase))
                 {
                     int equalsPosition = expression.IndexOf('=');
@@ -274,7 +422,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                         expression = expression.Substring(equalsPosition + 1).Trim();
                 }
 
-                // Считываем границы и проверяем точность.
+                 
                 double a = ReadNumber(uiA.Text, "a");
                 double b = ReadNumber(uiB.Text, "b");
                 double eps = ReadNumber(uiEpsilon.Text, "ε");
@@ -285,27 +433,60 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 if (double.IsInfinity(b - a))
                     throw new ArgumentException("Слишком большой интервал [a, b].");
 
-                // Вычисляем значения на концах интервала.
                 ExpressionParser function = new ExpressionParser(expression);
+
+                 
+                 
+                 
                 double fa = function.Calculate(a);
                 double fb = function.Calculate(b);
+                if ((fa > 0 && fb > 0) || (fa < 0 && fb < 0))
+                    throw new ArgumentException(
+                        "Для метода дихотомии f(a) и f(b) должны иметь разные знаки. " +
+                        "Сейчас оба значения положительны или оба отрицательны. " +
+                        "Выберите другой интервал.");
+
+                if (uiAllRoots.Checked)
+                {
+                     
+                    List<double> roots = FindAllRoots(function, a, b, eps, out int refinementSteps);
+                    currentFunction = function;
+                    currentExpressionText = expression;
+                    currentA = a;
+                    currentB = b;
+                    currentRoots.Clear();
+                    currentRoots.AddRange(roots);
+
+                    var report = new StringBuilder();
+                    report.AppendLine("Найдено корней: " + roots.Count);
+                    report.AppendLine();
+                    for (int i = 0; i < roots.Count; i++)
+                    {
+                        double rootValue = function.Calculate(roots[i]);
+                        report.AppendLine((i + 1) + ".  x ≈ " +
+                            FormatRoot(roots[i], eps));
+                        report.AppendLine("     f(x) ≈ " +
+                            rootValue.ToString("G6", CultureInfo.CurrentCulture));
+                        report.AppendLine();
+                    }
+                    if (roots.Count == 0)
+                        report.AppendLine("Корней на выбранном интервале не обнаружено.");
+                    report.AppendLine("Шагов уточнения: " + refinementSteps);
+                    uiAnswer.Text = report.ToString();
+                    uiGraph.Invalidate();
+                    return;
+                }
+
+                 
+                 
                 double root;
                 int steps = 0;
-
-                // Если один из концов уже является корнем, итерации не нужны.
                 if (fa == 0)
                     root = a;
                 else if (fb == 0)
                     root = b;
                 else
                 {
-                    // Не перемножаем fa * fb: произведение может переполниться.
-                    if ((fa > 0) == (fb > 0))
-                        throw new ArgumentException(
-                            "На концах интервала функция должна менять знак: " +
-                            "f(a) и f(b) имеют одинаковый знак. Выберите другой интервал.");
-
-                    // Сужаем отрезок вдвое, сохраняя смену знака на его концах.
                     double left = a, right = b;
                     root = left;
                     bool converged = false;
@@ -315,14 +496,15 @@ namespace ProgrammingLabs.Labs.Dichotomy
                         root = mid;
                         double fm = function.Calculate(mid);
                         steps++;
-                        if (fm == 0 || (right - left) / 2.0 <= eps)
+                         
+                        if (fm == 0 || (right - left) / 2.0 <= eps / 2.0)
                         {
                             converged = true;
                             break;
                         }
                         if (mid == left || mid == right)
                         {
-                            converged = true; // достигнут предел точности double
+                            converged = true;
                             break;
                         }
                         if ((fa > 0) == (fm > 0))
@@ -331,32 +513,41 @@ namespace ProgrammingLabs.Labs.Dichotomy
                             fa = fm;
                         }
                         else
-                        {
                             right = mid;
-                        }
                     }
                     if (!converged)
                         throw new ArithmeticException("Не удалось достичь указанной точности.");
                 }
 
-                // Сохраняем найденное значение и обновляем результат на экране.
                 double valueAtRoot = function.Calculate(root);
+                 
+                 
+                if (Math.Abs(valueAtRoot) >
+                    Math.Max(1.0, Math.Max(Math.Abs(function.Calculate(a)),
+                                               Math.Abs(function.Calculate(b)))) * 10)
+                    throw new ArithmeticException("Найден разрыв функции, а не её корень. " +
+                        "Выберите другой интервал или режим «Все корни».");
+
                 currentFunction = function;
                 currentExpressionText = expression;
                 currentA = a;
                 currentB = b;
-                currentRoot = root;
+                currentRoots.Clear();
+                currentRoots.Add(root);
                 uiAnswer.Text =
-                    "Корень x ≈ " + root.ToString("G16", CultureInfo.CurrentCulture) +
-                    "\nЗначение f(x) ≈ " + valueAtRoot.ToString("G10", CultureInfo.CurrentCulture) +
-                    "\nИтераций: " + steps.ToString(CultureInfo.CurrentCulture);
+                    "Корень x ≈ " + FormatRoot(root, eps) +
+                    Environment.NewLine + "Значение f(x) ≈ " +
+                    valueAtRoot.ToString("G10", CultureInfo.CurrentCulture) +
+                    Environment.NewLine + "Итераций: " +
+                    steps.ToString(CultureInfo.CurrentCulture);
                 uiGraph.Invalidate();
             }
-            // Ошибки входных данных показываем пользователю, не завершая приложение.
+             
             catch (Exception ex) when (ex is ArgumentException || ex is FormatException ||
                                        ex is ArithmeticException || ex is OverflowException)
             {
                 currentFunction = null;
+                currentRoots.Clear();
                 uiGraph.Invalidate();
                 uiAnswer.Text = "Ошибка: " + ex.Message;
                 MessageBox.Show(this, ex.Message, "Некорректные данные",
@@ -364,11 +555,213 @@ namespace ProgrammingLabs.Labs.Dichotomy
             }
         }
 
-        #endregion
+         
+         
+         
+         
+        private static List<double> FindAllRoots(ExpressionParser function,
+            double a, double b, double eps, out int steps)
+        {
+            const int samples = 4000;
+            var roots = new List<double>();
+            steps = 0;
+            double xPrevious = a, yPrevious = 0;
+            double xBeforePrevious = a, yBeforePrevious = 0;
+            bool previousValid = TryEvaluate(function, a, out yPrevious);
+            bool beforePreviousValid = false;
+            int validSamples = previousValid ? 1 : 0;
+            int consecutiveExactZeros = previousValid && yPrevious == 0 ? 1 : 0;
+            double duplicateRadius = Math.Max(eps * 2, (b - a) / samples * 0.5);
 
-        #region 5. Построение графика функции
+            if (previousValid && Math.Abs(yPrevious) < 1e-12)
+                AddUniqueRoot(roots, a, duplicateRadius);
 
-        // Paint-обработчик: координатная сетка, кривая f(x), отметка корня.
+            for (int i = 1; i <= samples; i++)
+            {
+                double x = a + (b - a) * i / samples;
+                bool valid = TryEvaluate(function, x, out double y);
+                if (valid) validSamples++;
+                consecutiveExactZeros = valid && y == 0 ? consecutiveExactZeros + 1 : 0;
+                if (consecutiveExactZeros >= 3)
+                    throw new ArgumentException("Функция равна нулю на целом участке: " +
+                        "корней бесконечно много, перечислить их нельзя.");
+
+                if (valid && (y == 0 || (i == samples && Math.Abs(y) < 1e-12)))
+                    AddUniqueRoot(roots, x, duplicateRadius);
+
+                if (previousValid && valid && ((yPrevious < 0 && y > 0) ||
+                                               (yPrevious > 0 && y < 0)))
+                {
+                    if (TryBisect(function, xPrevious, x, yPrevious, y,
+                        eps, ref steps, out double root))
+                        AddUniqueRoot(roots, root, duplicateRadius);
+                }
+
+                 
+                if (beforePreviousValid && previousValid && valid &&
+                    Math.Abs(yPrevious) < Math.Abs(yBeforePrevious) &&
+                    Math.Abs(yPrevious) < Math.Abs(y))
+                {
+                    if (TryFindTouchingRoot(function, xBeforePrevious, x,
+                        eps, ref steps, out double touchingRoot))
+                        AddUniqueRoot(roots, touchingRoot, duplicateRadius);
+                }
+
+                xBeforePrevious = xPrevious;
+                yBeforePrevious = yPrevious;
+                beforePreviousValid = previousValid;
+                xPrevious = x;
+                yPrevious = y;
+                previousValid = valid;
+
+                if (roots.Count > 500)
+                    throw new ArgumentException("Найдено слишком много корней. " +
+                        "Сузьте интервал поиска.");
+            }
+
+            if (validSamples == 0)
+                throw new ArgumentException("Не удалось вычислить функцию на интервале. " +
+                    "Проверьте формулу и область определения.");
+            roots.Sort();
+            return roots;
+        }
+
+        private static bool TryEvaluate(ExpressionParser function, double x, out double y)
+        {
+            try
+            {
+                y = function.Calculate(x);
+                return !double.IsNaN(y) && !double.IsInfinity(y);
+            }
+            catch (ArithmeticException) { }
+            catch (FormatException) { }
+            y = 0;
+            return false;
+        }
+
+         
+         
+         
+        private static bool TryBisect(ExpressionParser function,
+            double left, double right, double leftValue, double rightValue,
+            double eps, ref int steps, out double root)
+        {
+            double initialMagnitude = Math.Min(Math.Abs(leftValue), Math.Abs(rightValue));
+            root = left + (right - left) / 2.0;
+            bool accuracyReached = false;
+
+            for (int i = 0; i < 80; i++)
+            {
+                double mid = left + (right - left) / 2.0;
+                if (mid == left || mid == right) break;
+                if (!TryEvaluate(function, mid, out double fm)) return false;
+
+                 
+                 
+                if (!accuracyReached)
+                {
+                    root = mid;
+                    steps++;
+                    if (fm == 0 || (right - left) / 2.0 <= eps / 2.0)
+                        accuracyReached = true;
+                }
+
+                if (fm == 0) return true;
+                if ((leftValue > 0) == (fm > 0))
+                {
+                    left = mid;
+                    leftValue = fm;
+                }
+                else
+                {
+                    right = mid;
+                    rightValue = fm;
+                }
+                if (right - left <= 1e-13 * Math.Max(1.0, Math.Abs(mid)))
+                    break;
+            }
+
+             
+             
+            double checkX = left + (right - left) / 2.0;
+            return TryEvaluate(function, checkX, out double residual) &&
+                Math.Abs(residual) <= Math.Max(1e-9, initialMagnitude * 1e-6);
+        }
+
+         
+         
+        private static bool TryFindTouchingRoot(ExpressionParser function,
+            double left, double right, double eps, ref int steps, out double root)
+        {
+            const double ratio = 0.6180339887498949;
+            if (!TryEvaluate(function, left, out double fLeft) ||
+                !TryEvaluate(function, right, out double fRight))
+            {
+                root = left;
+                return false;
+            }
+
+            double edgeMagnitude = Math.Min(Math.Abs(fLeft), Math.Abs(fRight));
+            double p = right - (right - left) * ratio;
+            double q = left + (right - left) * ratio;
+            if (!TryEvaluate(function, p, out double fp) ||
+                !TryEvaluate(function, q, out double fq))
+            {
+                root = left;
+                return false;
+            }
+
+            for (int i = 0; i < 65 && right - left > eps / 2.0; i++)
+            {
+                steps++;
+                if (Math.Abs(fp) < Math.Abs(fq))
+                {
+                    right = q;
+                    q = p;
+                    fq = fp;
+                    p = right - (right - left) * ratio;
+                    if (!TryEvaluate(function, p, out fp)) break;
+                }
+                else
+                {
+                    left = p;
+                    p = q;
+                    fp = fq;
+                    q = left + (right - left) * ratio;
+                    if (!TryEvaluate(function, q, out fq)) break;
+                }
+                if (right - left <= 1e-14 * Math.Max(1.0, Math.Abs(p)))
+                    break;
+            }
+
+            root = Math.Abs(fp) < Math.Abs(fq) ? p : q;
+             
+            return TryEvaluate(function, root, out double residual) &&
+                Math.Abs(residual) <= Math.Max(1e-12, edgeMagnitude * 0.4);
+        }
+
+         
+         
+        private static string FormatRoot(double root, double eps)
+        {
+            int digits = Math.Max(0, Math.Min(15,
+                (int)Math.Ceiling(-Math.Log10(eps) - 1e-12)));
+            if (Math.Abs(root) < Math.Pow(10, -digits) / 2.0)
+                root = 0;
+            return root.ToString("F" + digits, CultureInfo.CurrentCulture);
+        }
+
+         
+        private static void AddUniqueRoot(List<double> roots, double root, double tolerance)
+        {
+            foreach (double existing in roots)
+                if (Math.Abs(existing - root) <= tolerance) return;
+            roots.Add(root);
+        }
+
+
+
+         
         private void DrawGraph(object? sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
@@ -450,10 +843,10 @@ namespace ProgrammingLabs.Labs.Dichotomy
 
             double range = maxY - minY;
 
-            using (Pen grid = new Pen(Color.FromArgb(228, 238, 233)))
-            using (Pen axis = new Pen(Color.FromArgb(158, 175, 170), 1.3F))
-            using (Pen functionPen = new Pen(Color.FromArgb(41, 148, 143), 2.2F))
-            using (Pen rootPen = new Pen(Color.FromArgb(240, 128, 128), 1.6F))
+            using (Pen grid = new Pen(Color.FromArgb(232, 240, 236)))
+            using (Pen axis = new Pen(Color.FromArgb(162, 180, 178), 1.3F))
+            using (Pen functionPen = new Pen(AccentColor, 2.4F))
+            using (Pen rootPen = new Pen(Color.FromArgb(234, 119, 115), 1.6F))
             {
                 for (int i = 0; i <= 5; i++)
                 {
@@ -506,16 +899,23 @@ namespace ProgrammingLabs.Labs.Dichotomy
                         g.DrawLine(functionPen, x1, (float)y1, x2, (float)y2);
                     }
 
-                    float rootX = area.Left + (float)((currentRoot - currentA) / (currentB - currentA) * area.Width);
-                    rootPen.DashStyle = DashStyle.Dash;
-                    g.DrawLine(rootPen, rootX, area.Top, rootX, area.Bottom);
-
-                    double rootY = currentFunction.Calculate(currentRoot);
-                    double clampedRootY = Math.Max(minY, Math.Min(maxY, rootY));
-                    double rootPixelY = area.Bottom - (clampedRootY - minY) / range * area.Height;
-                    if (!double.IsNaN(rootPixelY) && !double.IsInfinity(rootPixelY))
+                     
+                     
+                    foreach (double root in currentRoots)
                     {
-                        g.FillEllipse(Brushes.LightCoral, rootX - 5, (float)rootPixelY - 5, 10, 10);
+                        float rootX = area.Left + (float)((root - currentA) /
+                            (currentB - currentA) * area.Width);
+                        if (currentRoots.Count == 1)
+                        {
+                            rootPen.DashStyle = DashStyle.Dash;
+                            g.DrawLine(rootPen, rootX, area.Top, rootX, area.Bottom);
+                        }
+                        if (!TryEvaluate(currentFunction, root, out double rootY))
+                            continue;
+                        double clampedRootY = Math.Max(minY, Math.Min(maxY, rootY));
+                        double rootPixelY = area.Bottom - (clampedRootY - minY) / range * area.Height;
+                        if (!double.IsNaN(rootPixelY) && !double.IsInfinity(rootPixelY))
+                            g.FillEllipse(Brushes.Salmon, rootX - 5, (float)rootPixelY - 5, 10, 10);
                     }
                 }
                 finally
@@ -532,7 +932,10 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 g.DrawString(bText, captionFont, Brushes.DimGray, area.Right - bTextSize.Width, area.Bottom + 8);
                 g.DrawString(maxY.ToString("G4", CultureInfo.CurrentCulture), captionFont, Brushes.DimGray, 2, area.Top);
                 g.DrawString(minY.ToString("G4", CultureInfo.CurrentCulture), captionFont, Brushes.DimGray, 2, area.Bottom - 17);
-                g.DrawString("x ≈ " + currentRoot.ToString("G7", CultureInfo.CurrentCulture), captionFont, Brushes.LightCoral, area.Left + 8, area.Top + 6);
+                string rootCaption = currentRoots.Count == 1
+                    ? "x ≈ " + currentRoots[0].ToString("G7", CultureInfo.CurrentCulture)
+                    : "Найдено корней: " + currentRoots.Count;
+                g.DrawString(rootCaption, captionFont, Brushes.Salmon, area.Left + 8, area.Top + 6);
             }
         }
 
@@ -579,11 +982,9 @@ namespace ProgrammingLabs.Labs.Dichotomy
             }
         }
 
-        #endregion
 
-        #region 6. Панель рисования графика
 
-        // Двойная буферизация убирает мерцание при перерисовке графика.
+         
         private sealed class GraphSurface : Panel
         {
             public GraphSurface()
@@ -593,11 +994,9 @@ namespace ProgrammingLabs.Labs.Dichotomy
             }
         }
 
-        #endregion
 
-        #region 7. Разбор и вычисление введённой формулы
 
-        // Разбор пользовательской формулы без внешних библиотек.
+         
         private sealed class ExpressionParser
         {
             private readonly string text;
@@ -609,7 +1008,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 text = formula;
             }
 
-            // Вычислить f(x): подставить x и полностью разобрать выражение.
+             
             public double Calculate(double argument)
             {
                 x = argument;
@@ -625,7 +1024,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 return result;
             }
 
-            // Служебные операции для пропуска пробелов и проверки символов.
+             
             private void SkipWhitespace()
             {
                 while (position < text.Length && char.IsWhiteSpace(text[position]))
@@ -643,7 +1042,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 return false;
             }
 
-            // Приоритет 1: сложение и вычитание.
+             
             private double ReadExpression()
             {
                 double value = ReadTerm();
@@ -655,7 +1054,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 }
             }
 
-            // Приоритет 2: умножение и деление.
+             
             private double ReadTerm()
             {
                 double value = ReadUnary();
@@ -667,7 +1066,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 }
             }
 
-            // Унарные знаки + и -.
+             
             private double ReadUnary()
             {
                 if (Accept('+')) return ReadUnary();
@@ -675,7 +1074,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 return ReadPower();
             }
 
-            // Возведение в степень ^.
+             
             private double ReadPower()
             {
                 double value = ReadAtom();
@@ -683,7 +1082,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 return value;
             }
 
-            // Скобки, числа, x, константы pi/e и функции sin/cos/...
+             
             private double ReadAtom()
             {
                 SkipWhitespace();
@@ -730,7 +1129,7 @@ namespace ProgrammingLabs.Labs.Dichotomy
                 throw new FormatException("Неверная формула около позиции " + (position + 1) + ".");
             }
 
-            // Чтение числового литерала, включая дроби и экспоненциальную запись.
+             
             private double ReadNumber()
             {
                 int start = position;
@@ -770,6 +1169,5 @@ namespace ProgrammingLabs.Labs.Dichotomy
             }
         }
 
-        #endregion
     }
 }

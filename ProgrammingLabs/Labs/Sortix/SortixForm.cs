@@ -15,9 +15,9 @@ using ExcelDataReader;
 
 namespace ProgrammingLabs.Labs.Sortix
 {
-    // ============================================================
-    //  АЛГОРИТМЫ СОРТИРОВКИ
-    // ============================================================
+     
+     
+     
     public abstract class SortingAlgorithm
     {
         public string Name { get; protected set; } = string.Empty;
@@ -55,8 +55,8 @@ namespace ProgrammingLabs.Labs.Sortix
                         swapped = true;
                     }
                 }
-                // Итерацией считаем только завершённый рабочий проход.
-                // Проверочный проход без обменов нужен алгоритму, но в статистику не входит.
+                 
+                 
                 if (!swapped) break;
                 RaiseIteration();
             }
@@ -119,8 +119,8 @@ namespace ProgrammingLabs.Labs.Sortix
                 }
                 left++;
 
-                // Один полный цикл шейкерной сортировки = проход вперёд + проход назад.
-                // Финальный проверочный цикл без обменов не учитываем.
+                 
+                 
                 if (!swapped) break;
                 RaiseIteration();
             }
@@ -203,9 +203,9 @@ namespace ProgrammingLabs.Labs.Sortix
         }
     }
 
-    // ============================================================
-    //  СОСТОЯНИЕ АЛГОРИТМА
-    // ============================================================
+     
+     
+     
     public class AlgorithmState
     {
         public string Name = string.Empty;
@@ -246,12 +246,12 @@ namespace ProgrammingLabs.Labs.Sortix
         }
     }
 
-    // ============================================================
-    //  ГЛАВНАЯ ФОРМА
-    // ============================================================
+     
+     
+     
     public partial class SortixForm : Form
     {
-        // ---------- Палитра ----------
+         
         private static readonly Color BgDark = Color.FromArgb(16, 15, 22);
         private static readonly Color BgPanel = Color.FromArgb(24, 22, 33);
         private static readonly Color BgCard = BgPanel;
@@ -271,12 +271,12 @@ namespace ProgrammingLabs.Labs.Sortix
         private static readonly Color CompareClr = Color.FromArgb(153, 199, 255);
         private static readonly Color SwapClr = Color.FromArgb(229, 173, 238);
 
-        // ---------- Константы ----------
+         
         private const int MaxBogoElements = 100;
         private const int MaxVisualizeElements = 50;
         private const int RunsPerAlgorithm = 5;
 
-        // ---------- Контролы ----------
+         
         private Panel headerPanel = null!;
         private Label titleLabel = null!;
         private Label subtitleLabel = null!;
@@ -303,7 +303,7 @@ namespace ProgrammingLabs.Labs.Sortix
         private Label lblDelayValue = null!;
         private StudioSlider tbDelay = null!;
 
-        // --- Знаков после запятой ---
+         
         private Label lblDecimals = null!;
         private NumericUpDown nudDecimals = null!;
 
@@ -314,7 +314,7 @@ namespace ProgrammingLabs.Labs.Sortix
         private Button btnCalculate = null!;
         private Button btnStop = null!;
 
-        // ---------- Состояние ----------
+         
         private double[] _currentData = Array.Empty<double>();
         private List<AlgorithmState> _states = new();
         private System.Windows.Forms.Timer _renderTimer = null!;
@@ -324,7 +324,7 @@ namespace ProgrammingLabs.Labs.Sortix
         private int _decimalPlaces = 3;
         private int _hoveredDeleteRow = -1;
 
-        // ---------- Цвета алгоритмов ----------
+         
         private readonly Dictionary<string, Color> _algoColors = new()
         {
             ["Пузырьковая"] = Color.FromArgb(169, 144, 228),
@@ -393,9 +393,9 @@ namespace ProgrammingLabs.Labs.Sortix
             LayoutControls();
         }
 
-        // ============================================================
-        //  FULLSCREEN
-        // ============================================================
+         
+         
+         
         private void EnterFullscreen()
         {
             var screen = Screen.FromControl(this);
@@ -422,10 +422,10 @@ namespace ProgrammingLabs.Labs.Sortix
             LayoutControls();
         }
 
-        // ============================================================
-        //  UI
-        // ============================================================
-        // ---------- Интерфейс SORTIX / Studio ----------
+         
+         
+         
+         
         private int U(float value) => (int)Math.Round(value * DeviceDpi / 96f);
 
         private static GraphicsPath Rounded(RectangleF r, float radius)
@@ -613,7 +613,7 @@ namespace ProgrammingLabs.Labs.Sortix
                 {
                     if (child is TextBoxBase) continue;
                     SetDoubleBuffered(child);
-                    // Paint вызывается после штатной отрисовки кнопок NumericUpDown.
+                     
                     child.Paint += PaintArrows;
                 }
             }
@@ -813,9 +813,9 @@ namespace ProgrammingLabs.Labs.Sortix
             };
             dataGrid.CurrentCellChanged += (s, e) =>
             {
-                // Row headers have ColumnIndex == -1, but -1 is not a real column and
-                // InvalidateColumn(-1) throws ArgumentOutOfRangeException.
-                // Repaint the row-header area directly instead.
+                 
+                 
+                 
                 dataGrid.Invalidate();
             };
             dataGrid.CellMouseClick += (s, e) =>
@@ -900,7 +900,7 @@ namespace ProgrammingLabs.Labs.Sortix
         {
             if (Environment.OSVersion.Platform != PlatformID.Win32NT) return;
             int dark = 1, background = ColorTranslator.ToWin32(BgDark), text = ColorTranslator.ToWin32(TextMain);
-            // Неподдерживаемые атрибуты возвращают HRESULT: рамка остаётся системной.
+             
             DwmSetWindowAttribute(form.Handle, 20, ref dark, sizeof(int));
             DwmSetWindowAttribute(form.Handle, 35, ref background, sizeof(int));
             DwmSetWindowAttribute(form.Handle, 36, ref text, sizeof(int));
@@ -920,7 +920,7 @@ namespace ProgrammingLabs.Labs.Sortix
                     if (b is StudioButton studio) studio.Primary = b.DialogResult == DialogResult.OK;
                     b.Cursor = Cursors.Hand;
                 }
-                // Внутренние кнопки и редактор NumericUpDown оформляет StudioNumber.
+                 
                 if (c is NumericUpDown) return;
                 foreach (Control child in c.Controls) Style(child);
             }
@@ -973,9 +973,9 @@ namespace ProgrammingLabs.Labs.Sortix
             return $"{min:F0} мин {remSec:F2} с";
         }
 
-        // ============================================================
-        //  ХЕЛПЕР: парсинг double с запятой и точкой
-        // ============================================================
+         
+         
+         
         private static bool TryParseDouble(string s, out double value)
         {
             s = s.Trim();
@@ -986,9 +986,9 @@ namespace ProgrammingLabs.Labs.Sortix
                     System.Globalization.CultureInfo.InvariantCulture, out value);
         }
 
-        // ============================================================
-        //  РАСКЛАДКА
-        // ============================================================
+         
+         
+         
         private static void RoundControl(Control control, int radius)
         {
             if (control.Width < 2 || control.Height < 2) return;
@@ -1208,9 +1208,9 @@ namespace ProgrammingLabs.Labs.Sortix
             if (chartTip.GetToolTip(workspacePanel) != text) chartTip.SetToolTip(workspacePanel, text);
         }
 
-        // ============================================================
-        //  ДАННЫЕ
-        // ============================================================
+         
+         
+         
         private void SetupGrid()
         {
             dataGrid.Columns.Clear();
@@ -1308,9 +1308,9 @@ namespace ProgrammingLabs.Labs.Sortix
             lblStatus.Text = "Данные очищены.";
         }
 
-        // ============================================================
-        //  ФАБРИКА
-        // ============================================================
+         
+         
+         
         private static SortingAlgorithm CreateAlgoByName(string name)
         {
             switch (name)
@@ -1324,9 +1324,9 @@ namespace ProgrammingLabs.Labs.Sortix
             }
         }
 
-        // ============================================================
-        //  ГЕНЕРАЦИЯ
-        // ============================================================
+         
+         
+         
         private void BtnGenerate_Click(object? sender, EventArgs e)
         {
             using var dlg = new GenerateForm();
@@ -1343,9 +1343,9 @@ namespace ProgrammingLabs.Labs.Sortix
             LoadDataToGrid(data);
         }
 
-        // ============================================================
-        //  EXCEL
-        // ============================================================
+         
+         
+         
         private void BtnExcel_Click(object? sender, EventArgs e)
         {
             using var dlg = new OpenFileDialog
@@ -1400,9 +1400,9 @@ namespace ProgrammingLabs.Labs.Sortix
             return result;
         }
 
-        // ============================================================
-        //  GOOGLE SHEETS
-        // ============================================================
+         
+         
+         
         private async void BtnGoogle_Click(object? sender, EventArgs e)
         {
             using var dlg = new GoogleLinkForm();
@@ -1488,18 +1488,18 @@ namespace ProgrammingLabs.Labs.Sortix
             return m.Success ? m.Groups[1].Value : null;
         }
 
-        // ============================================================
-        //  СТОП
-        // ============================================================
+         
+         
+         
         private void BtnStop_Click(object? sender, EventArgs e)
         {
             _cts?.Cancel();
             lblStatus.Text = "Остановка...";
         }
 
-        // ============================================================
-        //  РАССЧИТАТЬ
-        // ============================================================
+         
+         
+         
         private async void BtnCalculate_Click(object? sender, EventArgs e)
         {
             if (_isRunning) return;
@@ -1556,7 +1556,7 @@ namespace ProgrammingLabs.Labs.Sortix
                 ? $"Замер ({RunsPerAlgorithm} прогонов, кроме BOGO)..."
                 : $"Сортировка выполняется (визуализация отключена, элементов > {MaxVisualizeElements}).";
 
-            // ---------- Инициализация состояний ----------
+             
             _states = new List<AlgorithmState>();
             foreach (var name in selectedNames)
             {
@@ -1573,9 +1573,9 @@ namespace ProgrammingLabs.Labs.Sortix
             _showReport = false; reportBox.Clear(); btnReport.Enabled = false;
             UpdateWorkspace();
 
-            // ============================================================
-            //  ФАЗА 1: ЧИСТЫЙ ЗАМЕР
-            // ============================================================
+             
+             
+             
             var measureTasks = new List<Task>();
 
             foreach (var name in selectedNames)
@@ -1664,9 +1664,9 @@ namespace ProgrammingLabs.Labs.Sortix
             try { await Task.WhenAll(measureTasks); }
             catch (OperationCanceledException) { }
 
-            // ============================================================
-            //  ФАЗА 2: ВОСПРОИЗВЕДЕНИЕ
-            // ============================================================
+             
+             
+             
             if (visualize && !token.IsCancellationRequested)
             {
                 lblStatus.Text = "Воспроизведение визуализации...";
@@ -1746,9 +1746,9 @@ namespace ProgrammingLabs.Labs.Sortix
                 }
             }
 
-            // ============================================================
-            //  ОТЧЁТ
-            // ============================================================
+             
+             
+             
             var ordered = _states.OrderBy(s => s.AvgMs).ToList();
             var sb = new StringBuilder();
 
@@ -1809,9 +1809,9 @@ namespace ProgrammingLabs.Labs.Sortix
             workspacePanel.Invalidate();
         }
 
-        // ============================================================
-        //  КЛАВИШИ
-        // ============================================================
+         
+         
+         
         private void SortixForm_KeyDown(object? sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape)
@@ -1832,9 +1832,9 @@ namespace ProgrammingLabs.Labs.Sortix
         }
     }
 
-    // ============================================================
-    //  ФОРМА: ГЕНЕРАЦИЯ
-    // ============================================================
+     
+     
+     
     public class GenerateForm : Form
     {
         private NumericUpDown nudCount = null!, nudMin = null!, nudMax = null!;
@@ -1887,9 +1887,9 @@ namespace ProgrammingLabs.Labs.Sortix
         }
     }
 
-    // ============================================================
-    //  ФОРМА: GOOGLE SHEETS
-    // ============================================================
+     
+     
+     
     public class GoogleLinkForm : Form
     {
         private TextBox txtUrl = null!;
