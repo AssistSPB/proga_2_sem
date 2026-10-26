@@ -2,30 +2,22 @@
 {
     partial class MainMenuForm
     {
-        /// <summary>Обязательная переменная конструктора форм Windows.</summary>
-        private System.ComponentModel.IContainer components = null;
+        private System.ComponentModel.IContainer? components = null;
 
-        /// <summary>Освободить используемые ресурсы.</summary>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && components != null)
-                components.Dispose();
+            if (disposing) components?.Dispose();
             base.Dispose(disposing);
         }
-
-        #region Код, автоматически созданный конструктором форм Windows
 
         private void InitializeComponent()
         {
             SuspendLayout();
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(1060, 650);
+            ClientSize = new System.Drawing.Size(640, 440);
             Name = "MainMenuForm";
-            Text = "Programming Labs";
             ResumeLayout(false);
         }
-
-        #endregion
     }
 }

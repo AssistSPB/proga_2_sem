@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Запустить лабораторную",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "/usr/bin/mono",
+            "args": ["/home/assistspb/proga_2_sem/ProgrammingLabs/bin/Debug/net10.0-windows/ProgrammingLabs.exe"],
+            "cwd": "/home/assistspb/proga_2_sem/ProgrammingLabs",
+            "terminalKind": "integrated"
+        }
+    ]
+}
