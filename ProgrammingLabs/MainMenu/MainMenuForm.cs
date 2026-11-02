@@ -2,7 +2,9 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using ProgrammingLabs.Labs.Dichotomy;
+using ProgrammingLabs.Labs.discriminant;
 using ProgrammingLabs.Labs.GoldenSection;
+using ProgrammingLabs.Labs.Newton;
 using ProgrammingLabs.Labs.Sortix;
 
 namespace ProgrammingLabs.MainMenu
@@ -20,8 +22,8 @@ namespace ProgrammingLabs.MainMenu
             InitializeComponent();
             Text = "Programming Labs";
             StartPosition = FormStartPosition.CenterScreen;
-            MinimumSize = new Size(470, 395);
-            Size = new Size(640, 470);
+            MinimumSize = new Size(470, 530);
+            Size = new Size(640, 575);
             BackColor = Bg;
             Font = new Font("Tahoma", 10F);
             KeyPreview = true;
@@ -30,6 +32,8 @@ namespace ProgrammingLabs.MainMenu
                 if (e.KeyCode == Keys.D1 || e.KeyCode == Keys.NumPad1) Open(() => new SortixForm());
                 if (e.KeyCode == Keys.D2 || e.KeyCode == Keys.NumPad2) Open(() => new DichotomyForm());
                 if (e.KeyCode == Keys.D3 || e.KeyCode == Keys.NumPad3) Open(() => new GoldenSectionForm());
+                if (e.KeyCode == Keys.D4 || e.KeyCode == Keys.NumPad4) Open(() => new NewtonForm());
+                if (e.KeyCode == Keys.D5 || e.KeyCode == Keys.NumPad5) Open(() => new discrimForm());
                 if (e.KeyCode == Keys.Escape) Close();
             };
             BuildInterface();
@@ -75,10 +79,12 @@ namespace ProgrammingLabs.MainMenu
 
             var list = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5,
+                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7,
                 BackColor = PanelColor, Padding = new Padding(15), Margin = new Padding(0, 8, 0, 8)
             };
             list.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            list.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
+            list.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
             list.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
             list.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
             list.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
@@ -87,12 +93,14 @@ namespace ProgrammingLabs.MainMenu
             list.Controls.Add(Button("1    Sortix", () => Open(() => new SortixForm())), 0, 1);
             list.Controls.Add(Button("2    Dichotomy", () => Open(() => new DichotomyForm())), 0, 2);
             list.Controls.Add(Button("3    Golden Section", () => Open(() => new GoldenSectionForm())), 0, 3);
+            list.Controls.Add(Button("4    Newton", () => Open(() => new NewtonForm())), 0, 4);
+            list.Controls.Add(Button("5    Discriminant / Vieta", () => Open(() => new discrimForm())), 0, 5);
             outer.Controls.Add(list, 0, 1);
 
             var close = Button("Закрыть", Close);
             close.Margin = new Padding(0, 2, 0, 2);
             outer.Controls.Add(close, 0, 2);
-            outer.Controls.Add(Label("  1 / 2 / 3 — открыть     Esc — выход", new Font("Tahoma", 8), Accent), 0, 3);
+            outer.Controls.Add(Label("  1 / 2 / 3 / 4 / 5 — открыть     Esc — выход", new Font("Tahoma", 8), Accent), 0, 3);
             Controls.Add(outer);
         }
 
